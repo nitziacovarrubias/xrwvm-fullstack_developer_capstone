@@ -1,15 +1,15 @@
 # Uncomment the required imports before adding the code
 
 # from django.shortcuts import render
-# from django.http import HttpResponseRedirect, HttpResponse
-# from django.contrib.auth.models import User
+from django.http import HttpResponseRedirect, HttpResponse
+from django.contrib.auth.models import User
 # from django.shortcuts import get_object_or_404, render, redirect
-# from django.contrib.auth import logout
+from django.contrib.auth import logout
 # from django.contrib import messages
 # from datetime import datetime
 
 from django.http import JsonResponse
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, logout, authenticate
 import logging
 import json
 from django.views.decorators.csrf import csrf_exempt
@@ -56,13 +56,42 @@ def get_cars(request):
 
 
 # Create a `logout_request` view to handle sign out request
-# def logout_request(request):
-# ...
+@csrf_exempt
+def logout_request(request):
+    logout(request)
+    return JsonResponse({"userName": "", "status": "Logged out"})
 
 # Create a `registration` view to handle sign up request
-# @csrf_exempt
-# def registration(request):
-# ...
+@csrf_exempt
+def registration(request):
+    data = json.loads(request.body)
+
+    username = data["userName"]
+    password = data["password"]
+    first_name = data["firstName"]
+    last_name = data["lastName"]
+    email = data["email"]
+
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({
+            "status": 400,
+            "message": "Username already exists"
+        })
+
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+    )
+
+    login(request, user)
+
+    return JsonResponse({
+        "status": 201,
+        "userName": username
+    })
 
 #Update the `get_dealerships` render list of dealerships all by default, particular state if state is passed
 def get_dealerships(request, state="All"):
@@ -78,7 +107,7 @@ def get_dealerships(request, state="All"):
 def get_dealer_reviews(request,dealer_id):
     if(dealer_id):
         endpoint = "/fetchReviews/dealer/" + str(dealer_id)
-        reviews = requests.get_request(endpoint)
+        reviews = get_request(endpoint)
         
         for review_detail in reviews:
             response = analyze_review_sentiments(review_detail["review"])
